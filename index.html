@@ -176,6 +176,10 @@ footer{text-align:center;font-size:12px;color:var(--soft);opacity:.7;padding:10p
   <section class="screen active" id="start">
     <div class="wrap">
       <h1 class="logo" aria-label="Drop In"><span class="ch" style="--i:0">D</span><span class="ch" style="--i:1">r</span><span class="ch" style="--i:2">o</span><span class="ch" style="--i:3">p</span><span class="gap"></span><span class="ch in" style="--i:4">I</span><span class="ch in" style="--i:5">n</span></h1>
+      <div id="resumeBox" class="hide" style="border:1.5px solid var(--line);border-radius:18px;padding:14px 16px">
+        <p class="sub" id="resumeText" style="color:var(--text);margin-bottom:10px"></p>
+        <button class="btn" id="resumeBtn">接著專心</button>
+      </div>
       <p class="sub">現在要做的第一步是什麼？<br>寫得越具體越好開始。</p>
       <input type="text" id="task" maxlength="60" placeholder="例如：打開普心講義，讀完第一節" autocomplete="off">
       <div class="label">專注多久</div>
@@ -481,16 +485,93 @@ function fadeMaster(to, sec){
 }
 const masterLevel = () => Math.pow(S.volume / 100, 1.6);
 
-function chime(){
+/* 時間到的提示音：三聲一組的「逼逼逼」，一共四組、約 5 秒。
+   開始倒數時就先排進聲音的時間軸，這樣背景或鎖定螢幕時網頁的計時器被放慢，聲音也會準時響 */
+const AL = { nodes:[], at:0, playing:[] }; // nodes：排好的這一組，playing：已經開始響的上一組
+const stopAll = list => list.forEach(o => { try{ o.stop(); }catch{} });
+function cancelAlarm(){
+  stopAll(AL.nodes); stopAll(AL.playing);
+  AL.nodes = []; AL.playing = []; AL.at = 0;
+}
+function scheduleAlarm(delaySec){
+  // 上一組如果已經開始響了，就讓它響完，只取消還沒響的
+  if(AL.nodes.length && A.ctx && A.ctx.currentTime >= AL.at){ AL.playing = AL.nodes; }
+  else stopAll(AL.nodes);
+  AL.nodes = []; AL.at = 0;
   if(!A.ctx) return;
-  const t = A.ctx.currentTime;
-  [523.25, 783.99].forEach((f, i) => {
-    const o = A.ctx.createOscillator(), g = A.ctx.createGain();
-    o.frequency.value = f; g.gain.setValueAtTime(0, t + i*.25);
-    g.gain.linearRampToValueAtTime(.18, t + i*.25 + .02);
-    g.gain.exponentialRampToValueAtTime(.0001, t + i*.25 + 2.5);
-    o.connect(g).connect(A.ctx.destination); o.start(t + i*.25); o.stop(t + i*.25 + 2.6);
-  });
+  const t0 = A.ctx.currentTime + Math.max(0, delaySec);
+  AL.at = t0;
+  for(let g = 0; g < 4; g++){
+    for(let b = 0; b < 3; b++){
+      const t = t0 + g * 1.25 + b * .28;
+      const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = 988;
+      gn.gain.setValueAtTime(0, t);
+      gn.gain.linearRampToValueAtTime(.32, t + .012);
+      gn.gain.setValueAtTime(.32, t + .12);
+      gn.gain.linearRampToValueAtTime(0, t + .15);
+      o.connect(gn).connect(A.ctx.destination);
+      o.start(t); o.stop(t + .16); AL.nodes.push(o);
+    }
+  }
+}
+// 如果排好的提示音還沒響（例如聲音被系統暫停過），時間到就立刻補響
+function alarmNow(){
+  if(!A.ctx) return;
+  if(AL.nodes.length && A.ctx.currentTime >= AL.at - .3) return;
+  scheduleAlarm(0);
+}
+// 點一下畫面就能把正在響的提示音關掉
+document.addEventListener('pointerdown', () => {
+  if(!A.ctx) return;
+  if(AL.playing.length){ stopAll(AL.playing); AL.playing = []; }
+  if(AL.nodes.length && A.ctx.currentTime >= AL.at) cancelAlarm();
+});
+
+/* ---------- 鎖定螢幕上的控制 ----------
+   瀏覽器只會替「正在播放的媒體」顯示鎖定螢幕的控制，所以放一段聽不到的靜音一直播，
+   再用 Media Session 把任務名稱和進度條顯示出來 */
+const MS = 'mediaSession' in navigator ? navigator.mediaSession : null;
+const keep = new Audio();
+keep.loop = true; keep.setAttribute('playsinline', '');
+(() => {
+  const sr = 8000, n = sr * 10, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0,'RIFF'); v.setUint32(4, 36 + n, true); w(8,'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr, true);
+  v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36,'data'); v.setUint32(40, n, true);
+  new Uint8Array(buf, 44).fill(128);
+  keep.src = URL.createObjectURL(new Blob([buf], { type:'audio/wav' }));
+})();
+let ART = [];
+try{
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'), g = x.createRadialGradient(100, 90, 10, 128, 128, 150);
+  g.addColorStop(0, '#bff0ee'); g.addColorStop(1, '#17283f');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  ART = [{ src:c.toDataURL('image/png'), sizes:'256x256', type:'image/png' }];
+}catch{}
+function setMeta(title, label){
+  if(!MS) return;
+  try{ MS.metadata = new MediaMetadata({ title, artist:'Drop In', album:label, artwork:ART }); }catch{}
+}
+function lockScreen(title, total, elapsed, playing, label){
+  if(!MS) return;
+  setMeta(title, label);
+  try{
+    MS.playbackState = playing ? 'playing' : 'paused';
+    MS.setPositionState({ duration: total, position: Math.max(0, Math.min(elapsed, total)), playbackRate: 1 });
+  }catch{}
+}
+function stopKeep(){
+  keep.pause();
+  if(MS){ try{ MS.metadata = null; MS.playbackState = 'none'; }catch{} }
+}
+if(MS){
+  try{
+    MS.setActionHandler('play',  () => { if(T.paused) togglePause(); });
+    MS.setActionHandler('pause', () => { if(!T.paused) togglePause(); });
+  }catch{}
 }
 
 /* ---------- 選單 ---------- */
@@ -530,18 +611,43 @@ const fmt = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s/60)}:
 function startTimer(sec, el, done){
   clearInterval(T.iv);
   Object.assign(T, { end: Date.now() + sec*1000, left: sec*1000, paused:false, el, done });
+  scheduleAlarm(sec);
   tick(); T.iv = setInterval(tick, 250);
+}
+function stopTimer(){
+  clearInterval(T.iv); T.done = null; cancelAlarm();
+  store.active = null; persist();
+  document.title = 'Drop In';
+}
+// 把進行中的這一輪存起來，網頁被關掉或重新整理也接得回來
+function saveActive(){
+  store.active = { task:current.task, minutes:current.minutes, end:T.end, paused:T.paused, left:T.left };
+  persist();
 }
 function tick(){
   const left = T.paused ? T.left : Math.max(0, T.end - Date.now());
   const [m, s] = fmt(left).split(':');
   T.el.innerHTML = `${m}<span class="colon">:</span>${s}`;
   document.title = `${fmt(left)} · Drop In`;
-  if(left <= 0 && !T.paused){ clearInterval(T.iv); T.done && T.done(); }
+  if(left <= 0 && !T.paused){
+    clearInterval(T.iv);
+    const d = T.done; T.done = null;
+    if(d){ alarmNow(); d(); }
+  }
 }
 function togglePause(){
-  if(T.paused){ T.end = Date.now() + T.left; T.paused = false; fadeMaster(masterLevel(), 1.5); }
-  else { T.left = Math.max(0, T.end - Date.now()); T.paused = true; fadeMaster(0, 1); }
+  if(!$('focus').classList.contains('active')) return;
+  const total = current.minutes * 60;
+  if(T.paused){
+    T.end = Date.now() + T.left; T.paused = false; fadeMaster(masterLevel(), 1.5);
+    scheduleAlarm(T.left / 1000); keep.play().catch(() => {});
+    lockScreen(current.task, total, total - T.left / 1000, true, '專注中');
+  } else {
+    T.left = Math.max(0, T.end - Date.now()); T.paused = true; fadeMaster(0, 1);
+    cancelAlarm(); keep.pause();
+    lockScreen(current.task, total, total - T.left / 1000, false, '已暫停');
+  }
+  saveActive();
   $('pauseBtn').textContent = T.paused ? '繼續' : '暫停';
   $('focus').classList.toggle('paused', T.paused);
 }
@@ -551,7 +657,9 @@ let wake = null;
 async function keepAwake(){ try { wake = await navigator.wakeLock?.request('screen'); } catch {} }
 function releaseAwake(){ try { wake?.release(); } catch {} wake = null; }
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && $('focus').classList.contains('active')) keepAwake();
+  if(document.visibilityState !== 'visible') return;
+  if($('focus').classList.contains('active')) keepAwake();
+  if(T.done && !T.paused) tick(); // 回到畫面時馬上校正倒數
 });
 
 /* ---------- 流程 ---------- */
@@ -564,6 +672,8 @@ $('goBtn').onclick = begin;
 function begin(){
   initAudio(); // 聲音一定要在使用者按下去的這一刻啟動
   current = { task: $('task').value.trim(), minutes: S.minutes, finished:false, done:null };
+  keep.play().catch(() => {}); // 也要在按下去的這一刻啟動，鎖定螢幕才會出現控制
+  setMeta(current.task, '準備中');
   const needHp = NEED_HP(S.sound);
   $('phoneAsk').classList.toggle('hide', !S.phoneAsk);
   $('noPhoneAsk').classList.toggle('hide', !S.phoneAsk);
@@ -604,8 +714,9 @@ function endBreath(){
 }
 $('skipBreath').onclick = endBreath;
 
-function startFocus(){
+function startFocus(resumeSec){
   go('focus');
+  const total = current.minutes * 60, sec = resumeSec || total;
   $('taskShow').textContent = current.task;
   $('vol').value = S.volume; $('speed').value = S.speed; $('speedVal').textContent = S.speed + ' 秒';
   $('pauseBtn').textContent = '暫停'; $('focus').classList.remove('paused');
@@ -614,19 +725,25 @@ function startFocus(){
   setSound(S.sound, 3);
   fadeMaster(masterLevel(), 3);
   keepAwake();
-  startTimer(S.minutes * 60, $('timer'), finishFocus);
+  startTimer(sec, $('timer'), finishFocus);
+  saveActive();
+  lockScreen(current.task, total, total - sec, true, '專注中');
 }
 
 function finishFocus(){
-  fadeMaster(0, 3);
-  setTimeout(() => setSound('quiet', .5), 3200);
-  chime();
+  fadeMaster(0, 1.2);
+  setTimeout(() => setSound('quiet', .5), 1500);
   releaseAwake();
+  store.active = null;
   current.finished = true;
   todayList().push(current); persist();
   $('askDone').classList.remove('hide'); $('afterDone').classList.add('hide');
   go('rest');
-  startTimer(5 * 60, $('restTimer'), () => { chime(); document.title = '休息結束 · Drop In'; });
+  startTimer(5 * 60, $('restTimer'), () => {
+    document.title = '休息結束 · Drop In';
+    lockScreen('休息結束了', 1, 1, false, '');
+  });
+  lockScreen('休息一下', 300, 0, true, '休息中');
 }
 
 function answer(done){
@@ -638,7 +755,7 @@ $('yesBtn').onclick = () => answer(true);
 $('noBtn').onclick = () => answer(false);
 
 $('nextBtn').onclick = () => {
-  clearInterval(T.iv); document.title = 'Drop In';
+  stopTimer(); stopKeep();
   $('task').value = current.done ? '' : current.task;
   $('goBtn').disabled = !$('task').value.trim();
   drawMenus(); drawToday(); go('start'); $('task').focus();
@@ -646,7 +763,7 @@ $('nextBtn').onclick = () => {
 $('stopBtn').onclick = showDone;
 
 function showDone(){
-  clearInterval(T.iv); document.title = 'Drop In';
+  stopTimer(); stopKeep();
   const list = todayList().filter(r => r.finished);
   $('roundCount').textContent = list.length;
   $('todayList').innerHTML = list.map(r =>
@@ -657,7 +774,7 @@ function showDone(){
 $('againBtn').onclick = () => { $('task').value = ''; $('goBtn').disabled = true; drawMenus(); drawToday(); go('start'); $('task').focus(); };
 
 $('quitBtn').onclick = () => {
-  clearInterval(T.iv); document.title = 'Drop In';
+  stopTimer(); stopKeep();
   fadeMaster(0, 1); setTimeout(() => setSound('quiet', .3), 1100);
   releaseAwake();
   drawToday(); go('start');
@@ -770,7 +887,32 @@ document.addEventListener('pointerdown', e => {
   setTimeout(() => s.remove(), 900);
 });
 
-drawMenus(); drawToday();
+function checkActive(){
+  const a = store.active;
+  if(!a) return;
+  const left = a.paused ? a.left : a.end - Date.now();
+  if(left > 1000){
+    $('resumeText').textContent = `上一輪「${a.task}」還剩 ${fmt(left)}`;
+    $('resumeBox').classList.remove('hide');
+  } else if(!a.paused){
+    // 離開的時候時間到了，直接算進今天
+    todayList().push({ task:a.task, minutes:a.minutes, finished:true, done:null });
+    store.active = null; persist(); drawToday();
+    $('todayNote').textContent = `上一輪「${a.task}」在你離開時已經結束，算進今天的輪數了。` + ($('todayNote').textContent ? ' ' + $('todayNote').textContent : '');
+  } else { store.active = null; persist(); }
+}
+$('resumeBtn').onclick = () => {
+  const a = store.active;
+  if(!a) return;
+  initAudio(); keep.play().catch(() => {});
+  current = { task:a.task, minutes:a.minutes, finished:false, done:null };
+  const left = a.paused ? a.left : a.end - Date.now();
+  $('resumeBox').classList.add('hide');
+  startFocus(Math.max(1, left / 1000));
+  if(a.paused) togglePause();
+};
+
+drawMenus(); drawToday(); checkActive();
 $('task').focus();
 </script>
 </body>
