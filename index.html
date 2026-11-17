@@ -303,6 +303,53 @@ const store = (() => {
 })();
 const S = store.settings;
 function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); } catch {} }
+
+/* ---------- 匿名使用紀錄 ----------
+   只記「做了什麼」，不收使用者寫的任務內容。ENDPOINT 留空就完全不送。 */
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwLeG1qsyeekKv7oQk1G9bVpomTSI0_BsOWYquZG-jiv48NTiEvbjMlTJCjTMzTYopZ/exec';
+const U = (() => {
+  try {
+    let id = localStorage.getItem('dropin-uid'), isNew = false;
+    if(!id){ id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('dropin-uid', id); isNew = true; }
+    return { id, isNew };
+  } catch { return { id:'', isNew:true }; }
+})();
+const SESSION = (() => {
+  try {
+    let s = sessionStorage.getItem('dropin-sid');
+    if(!s){ s = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('dropin-sid', s); }
+    return s;
+  } catch { return Math.random().toString(36).slice(2, 10); }
+})();
+const SOURCE = (() => {
+  const q = new URLSearchParams(location.search).get('utm_source');
+  if(q) return q.slice(0, 40);
+  try { return document.referrer ? new URL(document.referrer).hostname.slice(0, 60) : ''; } catch { return ''; }
+})();
+function track(event, value = '', extra = {}){
+  if(!ENDPOINT) return;
+  const body = JSON.stringify({ event, value, session:SESSION, uid:U.id, source:SOURCE,
+    device: innerWidth < 700 ? 'mobile' : 'desktop', ...extra });
+  try {
+    if(!(navigator.sendBeacon && navigator.sendBeacon(ENDPOINT, body))) fetch(ENDPOINT, { method:'POST', mode:'no-cors', body, keepalive:true });
+  } catch {}
+}
+// 實際聽了每種聲音多久（暫停不算，中途換聲音分開算）
+const L = { id:null, t0:0, acc:{} };
+function listenTo(id){
+  const now = Date.now();
+  if(L.id) L.acc[L.id] = (L.acc[L.id] || 0) + (now - L.t0) / 1000;
+  L.id = id; L.t0 = now;
+}
+function flushListen(){
+  listenTo(null);
+  Object.entries(L.acc).forEach(([k, v]) => { if(v >= 5) track('sound_time', k, { sound:k, seconds:Math.round(v) }); });
+  L.acc = {};
+}
+window.addEventListener('pagehide', () => { if(L.id) flushListen(); });
+try {
+  if(!sessionStorage.getItem('dropin-visit')){ sessionStorage.setItem('dropin-visit', '1'); track('visit', U.isNew ? 'new' : 'return'); }
+} catch { track('visit', U.isNew ? 'new' : 'return'); }
 function today(){ const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
 function todayList(){ return store.days[today()] || (store.days[today()] = []); }
 
@@ -610,7 +657,7 @@ function renderChips(box, items, current, onPick){
 function drawMenus(){
   renderChips($('minChips'), [15,25,35,50].map(m => ({ id:m, name:`${m} 分` })), S.minutes, m => { S.minutes = m; persist(); drawMenus(); });
   renderChips($('soundChips'), SOUNDS, S.sound, id => { S.sound = id; persist(); drawMenus(); });
-  renderChips($('focusSoundChips'), SOUNDS, S.sound, id => { S.sound = id; persist(); drawMenus(); setSound(id); soundNote(); });
+  renderChips($('focusSoundChips'), SOUNDS, S.sound, id => { S.sound = id; persist(); drawMenus(); setSound(id); soundNote(); if(L.id) listenTo(A.curId); });
   $('speedRow').classList.toggle('hide', effectiveSound(S.sound) !== '8d');
 }
 function soundNote(){
@@ -658,10 +705,11 @@ function togglePause(){
   if(T.paused){
     T.end = Date.now() + T.left; T.paused = false; fadeMaster(masterLevel(), 1.5);
     scheduleAlarm(T.left / 1000); keep.play().catch(() => {});
+    listenTo(A.curId);
     lockScreen(current.task, total, total - T.left / 1000, true, '專注中');
   } else {
     T.left = Math.max(0, T.end - Date.now()); T.paused = true; fadeMaster(0, 1);
-    cancelAlarm(); keep.pause();
+    cancelAlarm(); keep.pause(); listenTo(null);
     lockScreen(current.task, total, total - T.left / 1000, false, '已暫停');
   }
   saveActive();
@@ -708,6 +756,7 @@ $('readyBtn').onclick = startBreath;
 let breathTimers = [], breathLeftIv = null;
 function startBreath(){
   go('breathe');
+  track('start', S.headphones ? 'hp' : 'nohp', { sound:S.sound, minutes:S.minutes });
   const c = $('circle'), w = $('breathWord');
   let left = 60;
   $('breathLeft').textContent = left;
@@ -724,12 +773,13 @@ function startBreath(){
   };
   cycle();
 }
-function endBreath(){
+function endBreath(skipped){
+  track('breath', skipped === true ? 'skip' : 'full');
   breathTimers.forEach(clearTimeout); breathTimers = [];
   clearInterval(breathLeftIv);
   startFocus();
 }
-$('skipBreath').onclick = endBreath;
+$('skipBreath').onclick = () => endBreath(true);
 
 function startFocus(resumeSec){
   go('focus');
@@ -740,6 +790,7 @@ function startFocus(resumeSec){
   drawMenus(); soundNote();
   A.curId = 'quiet';
   setSound(S.sound, 3);
+  listenTo(A.curId);
   fadeMaster(masterLevel(), 3);
   keepAwake();
   startTimer(sec, $('timer'), finishFocus);
@@ -748,6 +799,8 @@ function startFocus(resumeSec){
 }
 
 function finishFocus(){
+  flushListen();
+  track('focus_done', '', { sound:S.sound, minutes:current.minutes, seconds:current.minutes * 60 });
   fadeMaster(0, 1.2);
   setTimeout(() => setSound('quiet', .5), 1500);
   releaseAwake();
@@ -764,6 +817,7 @@ function finishFocus(){
 }
 
 function answer(done){
+  track('answer', done ? 'done' : 'notyet');
   current.done = done; persist();
   $('askDone').classList.add('hide'); $('afterDone').classList.remove('hide');
   $('afterText').textContent = done ? '很好。下一步要做什麼？' : '沒關係，下一輪可以把同一步切小一點。';
@@ -791,6 +845,9 @@ function showDone(){
 $('againBtn').onclick = () => { $('task').value = ''; $('goBtn').disabled = true; drawMenus(); drawToday(); go('start'); $('task').focus(); };
 
 $('quitBtn').onclick = () => {
+  const leftMs = T.paused ? T.left : Math.max(0, T.end - Date.now());
+  flushListen();
+  track('quit', '', { sound:S.sound, minutes:current.minutes, seconds:Math.max(0, Math.round(current.minutes * 60 - leftMs / 1000)) });
   stopTimer(); stopKeep();
   fadeMaster(0, 1); setTimeout(() => setSound('quiet', .3), 1100);
   releaseAwake();
@@ -818,8 +875,9 @@ $('shareBtn').onclick = async () => {
   const n = todayList().filter(r => r.finished).length;
   const text = `我今天用 Drop In 專注了 ${n} 輪，寫下第一步就能開始：`;
   try {
-    if(navigator.share){ await navigator.share({ title:'Drop In', text, url: location.href }); return; }
+    if(navigator.share){ await navigator.share({ title:'Drop In', text, url: location.href }); track('share'); return; }
     await navigator.clipboard.writeText(`${text} ${location.href}`);
+    track('share');
     $('shareToast').textContent = '連結已經複製好了';
   } catch {}
 };
@@ -875,6 +933,7 @@ function preview(id){
   if(previewing === id){ stopPreview(); refreshGuide(); return; }
   clearTimeout(previewTimer);
   previewing = id;
+  track('sound_try', '', { sound:id });
   setSound(id, .8, true);
   fadeMaster(masterLevel() || .1, .6);
   previewTimer = setTimeout(() => { stopPreview(); refreshGuide(); }, 8000);
@@ -886,7 +945,7 @@ $('soundCards').addEventListener('click', e => {
   if(t) preview(t.dataset.try);
   if(u){ S.sound = u.dataset.use; persist(); drawMenus(); refreshGuide(); }
 });
-function openGuide(){ drawGuide(); $('sheet').classList.add('open'); $('sheetBg').classList.add('open'); }
+function openGuide(){ track('guide_open'); drawGuide(); $('sheet').classList.add('open'); $('sheetBg').classList.add('open'); }
 function closeGuide(){ stopPreview(); $('sheet').classList.remove('open'); $('sheetBg').classList.remove('open'); }
 $('guideBtn').onclick = openGuide;
 $('closeSheet').onclick = closeGuide;
@@ -921,6 +980,7 @@ function checkActive(){
 $('resumeBtn').onclick = () => {
   const a = store.active;
   if(!a) return;
+  track('resume');
   initAudio(); keep.play().catch(() => {});
   current = { task:a.task, minutes:a.minutes, finished:false, done:null };
   const left = a.paused ? a.left : a.end - Date.now();
