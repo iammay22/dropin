@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drop In</title>
+<meta name="description" content="寫下第一步，按 Enter，一分鐘內開始專心。">
+<meta property="og:title" content="Drop In">
+<meta property="og:description" content="寫下第一步，按 Enter，一分鐘內開始專心。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@1,9..144,200..600,100&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#0e1a2b; --bg2:#17283f; --text:#e8eef5; --soft:#9fb0c4;
+  --aqua:#8fd3d1; --pink:#f2b5c8; --line:rgba(232,238,245,.16); --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  min-height:100dvh;display:flex;flex-direction:column;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg1));
+  color:var(--text);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  transition:background 1.2s;
+}
+body.resting{background:radial-gradient(120% 90% at 50% 0%,#24474f,#132a33)}
+main{flex:1;position:relative;overflow:hidden}
+.screen{display:none;position:absolute;inset:0;padding:24px 20px 40px;
+  flex-direction:column;align-items:center;justify-content:safe center;text-align:center;gap:18px;overflow-y:auto}
+.screen.active{display:flex;animation:fade .6s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.wrap{width:100%;max-width:460px;display:flex;flex-direction:column;gap:18px}
+/* 標題：柔軟的斜體襯線字，字重和字距像呼吸一樣慢慢放大縮小，字母輪流浮起來像水波 */
+.logo{
+  font-family:"Fraunces",Georgia,"Times New Roman",serif;font-style:italic;font-weight:300;
+  font-size:60px;line-height:1.1;font-variation-settings:"SOFT" 100,"opsz" 144;
+  animation:logoBreath 6s ease-in-out infinite;
+}
+.logo .ch{display:inline-block;animation:logoFloat 6s ease-in-out infinite;animation-delay:calc(var(--i) * -.4s)}
+.logo .gap{display:inline-block;width:.28em}
+.logo .in{color:var(--aqua);text-shadow:0 0 28px rgba(143,211,209,.45)}
+@keyframes logoBreath{
+  0%,100%{font-weight:240;letter-spacing:0;opacity:.82}
+  50%{font-weight:420;letter-spacing:3px;opacity:1}
+}
+@keyframes logoFloat{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-6px)}
+}
+@media (prefers-reduced-motion:reduce){ .logo,.logo .ch{animation:none} }
+.sub{color:var(--soft);font-size:15px;line-height:1.6}
+input[type=text]{
+  width:100%;padding:16px 18px;font-size:17px;border-radius:var(--radius);
+  border:1.5px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);outline:none;
+}
+input[type=text]:focus{border-color:var(--aqua)}
+input[type=text]::placeholder{color:#6f8299}
+.label{font-size:13px;color:var(--soft);text-align:left;margin-bottom:-8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+/* 按鈕：顏色像水面一樣慢慢流動，按下去會泛起一圈漣漪 */
+.chip,.btn{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.chip{
+  flex:1 0 auto;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);
+  background:transparent;color:var(--text);font-size:15px;cursor:pointer;min-height:44px;
+  transition:border-color .5s,background-color .5s,transform .4s cubic-bezier(.3,1.6,.5,1);
+}
+.chip:hover{border-color:rgba(143,211,209,.5);transform:translateY(-2px)}
+.chip.on{
+  border-color:transparent;
+  background:
+    linear-gradient(var(--bg2),var(--bg2)) padding-box,
+    linear-gradient(120deg,#8fd3d1,#a9c4f0,#f2b5c8,#8fd3d1) border-box;
+  background-size:100% 100%,300% 100%;
+  animation:flow 6s linear infinite;
+  box-shadow:0 0 18px rgba(143,211,209,.18);
+}
+.btn{
+  width:100%;padding:15px;border-radius:999px;border:none;cursor:pointer;
+  background:linear-gradient(120deg,#8fd3d1,#a9c4f0,#f2b5c8,#a9c4f0,#8fd3d1);
+  background-size:300% 100%;animation:flow 8s linear infinite,glow 6s ease-in-out infinite;
+  color:#0e1a2b;font-size:17px;font-weight:600;min-height:52px;letter-spacing:1px;
+  transition:transform .4s cubic-bezier(.3,1.6,.5,1),opacity .4s;
+}
+.btn:hover{transform:translateY(-2px)}
+.btn:active,.chip:active{transform:scale(.97)}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line);font-weight:400;animation:none}
+.btn:disabled{opacity:.35;cursor:default;animation:none;transform:none}
+@keyframes flow{to{background-position:0 0,-300% 0}}
+.btn:not(.ghost){animation-name:flowBtn,glow}
+@keyframes flowBtn{to{background-position:-300% 0}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(143,211,209,0)}50%{box-shadow:0 0 26px rgba(143,211,209,.35)}}
+.ripple{
+  position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.45) 0%,rgba(255,255,255,.15) 45%,transparent 70%);
+  transform:translate(-50%,-50%) scale(0);animation:rip .9s ease-out forwards;
+}
+@keyframes rip{to{transform:translate(-50%,-50%) scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){ .btn,.chip.on{animation:none} }
+
+/* 聲音說明 */
+.sheet-bg{position:fixed;inset:0;background:rgba(5,10,20,.55);opacity:0;pointer-events:none;transition:opacity .4s;z-index:20}
+.sheet-bg.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;max-height:86dvh;overflow-y:auto;z-index:21;
+  background:#13233a;border-radius:24px 24px 0 0;padding:22px 20px calc(env(safe-area-inset-bottom) + 24px);
+  transform:translateY(100%);transition:transform .5s cubic-bezier(.2,.9,.3,1);
+  max-width:560px;margin:0 auto;text-align:left;
+}
+.sheet.open{transform:none}
+.sheet h2{font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:300;font-size:26px;margin-bottom:6px}
+.sound-card{border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;margin-top:12px}
+.sound-card .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.sound-card .name{font-size:17px}
+.sound-card p{font-size:14px;line-height:1.7;color:var(--soft)}
+.sound-card .tag{font-size:12px;color:var(--pink);margin-top:6px}
+.sound-card .chip{flex:0 0 auto;min-height:36px;padding:6px 14px;font-size:14px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:28px;margin:8px 0 4px}
+.bars i{flex:1;background:rgba(143,211,209,.45);border-radius:2px}
+.bars-cap{display:flex;justify-content:space-between;font-size:11px;color:#6f8299}
+.note{font-size:13px;color:var(--soft);line-height:1.6}
+.check{display:flex;gap:10px;align-items:center;justify-content:center;font-size:15px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--aqua)}
+.link{background:none;border:none;color:var(--soft);font-size:13px;text-decoration:underline;cursor:pointer}
+
+/* 呼吸圓 */
+.breath{width:220px;height:220px;display:grid;place-items:center;position:relative}
+.circle{
+  width:140px;height:140px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,rgba(143,211,209,.55),rgba(143,211,209,.12));
+  box-shadow:0 0 60px rgba(143,211,209,.35);transform:scale(.8);
+  transition:transform 2s ease-in-out;
+}
+.breath-word{font-size:20px;letter-spacing:2px;min-height:30px}
+
+/* 專注畫面 */
+.task-big{font-size:22px;line-height:1.6;max-width:640px;word-break:break-word}
+/* 倒數：跟標題同一套字，但數字本身不動，只有中間的冒號跟著呼吸 */
+.timer{
+  font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:250;
+  font-variation-settings:"SOFT" 100,"opsz" 144;
+  /* 斜體最後一個字會往右凸出去，右邊多留一點空間，字級也跟著螢幕寬度縮 */
+  font-size:clamp(52px,19vw,80px);padding:0 .14em 0 .04em;max-width:100%;white-space:nowrap;font-variant-numeric:tabular-nums lining-nums;letter-spacing:1px;
+}
+.timer .colon{display:inline-block;margin:0 2px;animation:colon 6s ease-in-out infinite;color:var(--aqua)}
+@keyframes colon{0%,100%{opacity:.35}50%{opacity:1}}
+.orb{width:14px;height:14px;border-radius:50%;background:var(--aqua);opacity:.6;
+  box-shadow:0 0 18px var(--aqua);animation:pulse 4s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.6);opacity:.25}}
+.paused .orb{animation-play-state:paused;opacity:.2}
+.ctrl{
+  position:absolute;left:0;right:0;bottom:24px;display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:0 20px;opacity:0;transition:opacity .5s;pointer-events:none;
+}
+.ctrl.show{opacity:1;pointer-events:auto}
+.ctrl .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:560px}
+.ctrl .chip{flex:0 0 auto;font-size:14px;padding:8px 14px;min-height:38px}
+.slider{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--soft)}
+.slider input{width:160px;accent-color:var(--aqua)}
+.toast{font-size:13px;color:var(--pink);min-height:18px}
+
+/* 休息 */
+.answer{display:flex;gap:10px;width:100%}
+.answer .btn{flex:1}
+.list{text-align:left;font-size:15px;line-height:1.9;color:var(--soft)}
+.list b{color:var(--aqua);font-weight:400;margin-right:6px}
+.big-num{font-size:56px;color:var(--aqua);font-weight:300}
+
+footer{text-align:center;font-size:12px;color:var(--soft);opacity:.7;padding:10px 0 calc(env(safe-area-inset-bottom) + 10px)}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<main>
+
+  <!-- 1. 開始 -->
+  <section class="screen active" id="start">
+    <div class="wrap">
+      <h1 class="logo" aria-label="Drop In"><span class="ch" style="--i:0">D</span><span class="ch" style="--i:1">r</span><span class="ch" style="--i:2">o</span><span class="ch" style="--i:3">p</span><span class="gap"></span><span class="ch in" style="--i:4">I</span><span class="ch in" style="--i:5">n</span></h1>
+      <p class="sub">現在要做的第一步是什麼？<br>寫得越具體越好開始。</p>
+      <input type="text" id="task" maxlength="60" placeholder="例如：打開普心講義，讀完第一節" autocomplete="off">
+      <div class="label">專注多久</div>
+      <div class="chips" id="minChips"></div>
+      <div class="label">聲音</div>
+      <div class="chips" id="soundChips"></div>
+      <button class="link" id="guideBtn" style="align-self:flex-start;margin-top:-6px">這幾種聲音差在哪？點我試聽</button>
+      <button class="btn" id="goBtn" disabled>開始</button>
+      <p class="note" id="todayNote"></p>
+    </div>
+  </section>
+
+  <!-- 2. 準備 -->
+  <section class="screen" id="ready">
+    <div class="wrap">
+      <p class="sub" id="phoneAsk" style="font-size:20px;color:var(--text)">手機放遠一點了嗎？<br><span class="note">放到另一個房間最好，蓋著放在桌上其實也會分心。</span></p>
+      <label class="check" id="hpRow"><input type="checkbox" id="hp"> 我有戴耳機</label>
+      <p class="note" id="hpNote">環繞音和雙耳節拍都要戴耳機才有效果。沒戴的話會先換成粉紅噪音。</p>
+      <button class="btn" id="readyBtn">好了</button>
+      <button class="link" id="noPhoneAsk">以後不用問我手機</button>
+    </div>
+  </section>
+
+  <!-- 3. 呼吸 -->
+  <section class="screen" id="breathe">
+    <p class="sub">先跟著圓呼吸一分鐘</p>
+    <div class="breath"><div class="circle" id="circle"></div></div>
+    <div class="breath-word" id="breathWord">吸氣</div>
+    <p class="note"><span id="breathLeft">60</span> 秒</p>
+    <button class="link" id="skipBreath">跳過</button>
+  </section>
+
+  <!-- 4. 專注 -->
+  <section class="screen" id="focus">
+    <div class="orb"></div>
+    <p class="task-big" id="taskShow"></p>
+    <div class="timer" id="timer">25:00</div>
+    <div class="toast" id="toast"></div>
+    <div class="ctrl" id="ctrl">
+      <div class="row" id="focusSoundChips"></div>
+      <div class="slider"><span>音量</span><input type="range" id="vol" min="0" max="100"></div>
+      <div class="slider" id="speedRow"><span>轉一圈</span><input type="range" id="speed" min="5" max="30"><span id="speedVal">12 秒</span></div>
+      <div class="row">
+        <button class="chip" id="pauseBtn">暫停</button>
+        <button class="chip" id="quitBtn">放棄這輪</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 休息 -->
+  <section class="screen" id="rest">
+    <div class="wrap">
+      <p class="sub">休息一下，眼睛看遠一點</p>
+      <div class="timer" id="restTimer">5:00</div>
+      <div id="askDone">
+        <p class="sub" style="color:var(--text);margin-bottom:12px">剛剛那一步做完了嗎？</p>
+        <div class="answer">
+          <button class="btn" id="yesBtn">做完了</button>
+          <button class="btn ghost" id="noBtn">還沒</button>
+        </div>
+      </div>
+      <div id="afterDone" class="hide">
+        <p class="sub" id="afterText" style="margin-bottom:12px"></p>
+        <div class="answer">
+          <button class="btn" id="nextBtn">下一步</button>
+          <button class="btn ghost" id="stopBtn">今天到這裡</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. 今天 -->
+  <section class="screen" id="done">
+    <div class="wrap">
+      <p class="sub">今天專注了</p>
+      <div class="big-num"><span id="roundCount">0</span> 輪</div>
+      <div class="list" id="todayList"></div>
+      <button class="btn" id="againBtn">再來一輪</button>
+      <button class="btn ghost" id="shareBtn">分享給朋友</button>
+      <p class="toast" id="shareToast"></p>
+    </div>
+  </section>
+
+</main>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="聲音說明">
+  <h2>聽聽看差在哪</h2>
+  <p class="note">每種都可以試聽 8 秒。下面的長條是大概的聲音分布，左邊是低音，右邊是高音。每個人適合的不一樣，挑一個聽了不煩的就好。</p>
+  <div id="soundCards"></div>
+  <button class="btn ghost" id="closeSheet" style="margin-top:18px">知道了</button>
+</div>
+
+<footer>作者：may22</footer>
+
+<script>
+/* ---------- 存檔 ---------- */
+const SAVE_KEY = 'dropin-v1';
+const store = (() => {
+  let d;
+  try { d = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { d = {}; }
+  d.settings = Object.assign({ minutes:25, sound:'8d', volume:30, phoneAsk:true, headphones:false, speed:12 }, d.settings);
+  d.days = d.days || {};
+  return d;
+})();
+const S = store.settings;
+function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); } catch {} }
+function today(){ const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+function todayList(){ return store.days[today()] || (store.days[today()] = []); }
+
+const $ = id => document.getElementById(id);
+function go(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  document.body.classList.toggle('resting', id === 'rest');
+}
+
+/* ---------- 聲音 ---------- */
+const SOUNDS = [
+  { id:'8d',    name:'環繞音' },
+  { id:'binaural', name:'雙耳節拍' },
+  { id:'lofi',  name:'Lo-fi' },
+  { id:'pink',  name:'粉紅噪音' },
+  { id:'brown', name:'棕噪音' },
+  { id:'white', name:'白噪音' },
+  { id:'quiet', name:'安靜' },
+];
+const A = { ctx:null, master:null, cur:null, curId:'quiet', buffers:{} };
+
+function initAudio(){
+  if(!A.ctx){
+    A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    A.master = A.ctx.createGain();
+    A.master.gain.value = 0;
+    A.master.connect(A.ctx.destination);
+  }
+  if(A.ctx.state === 'suspended') A.ctx.resume();
+}
+
+function noiseBuffer(type){
+  if(A.buffers[type]) return A.buffers[type];
+  const sr = A.ctx.sampleRate, len = sr * 10;
+  const buf = A.ctx.createBuffer(2, len, sr);
+  for(let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,last=0,peak=0;
+    for(let i = 0; i < len; i++){
+      const w = Math.random()*2 - 1;
+      let v;
+      if(type === 'white') v = w;
+      else if(type === 'pink'){
+        b0=.99886*b0+w*.0555179; b1=.99332*b1+w*.0750759; b2=.969*b2+w*.153852;
+        b3=.8665*b3+w*.3104856; b4=.55*b4+w*.5329522; b5=-.7616*b5-w*.016898;
+        v = b0+b1+b2+b3+b4+b5+b6+w*.5362; b6 = w*.115926;
+      } else { last = (last + .02*w) / 1.02; v = last; }
+      d[i] = v; peak = Math.max(peak, Math.abs(v));
+    }
+    for(let i = 0; i < len; i++) d[i] /= peak;
+    // 頭尾淡接，避免循環時的喀一聲
+    const fade = Math.floor(sr * .05);
+    for(let i = 0; i < fade; i++){ const k = i / fade; d[i] *= k; d[len-1-i] *= k; }
+  }
+  return A.buffers[type] = buf;
+}
+
+function makeNoise(type){
+  const ctx = A.ctx, out = ctx.createGain();
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer(type); src.loop = true;
+  const level = { white:.22, pink:.45, brown:.8 }[type];
+  const g = ctx.createGain(); g.gain.value = level;
+  src.connect(g).connect(out); src.start();
+  return { out, stop(){ try{ src.stop(); }catch{} } };
+}
+
+/* 環繞音：一組很柔的和弦加一點雨聲質感，放進立體空間繞著頭轉 */
+function make8D(){
+  const ctx = A.ctx, out = ctx.createGain(), nodes = [];
+  const panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 1; panner.rolloffFactor = .6;
+
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = .3;
+  const pad = ctx.createGain(); pad.gain.value = .5;
+  // A 大調九和弦，低一點比較不吵
+  [110, 164.81, 220, 277.18, 329.63, 493.88].forEach((f, i) => {
+    const o = ctx.createOscillator();
+    o.type = i === 0 ? 'triangle' : 'sine';
+    o.frequency.value = f; o.detune.value = (Math.random() - .5) * 8;
+    const g = ctx.createGain(); g.gain.value = i === 0 ? .14 : .08;
+    // 每個音各自慢慢起伏，聽起來比較像呼吸而不是一直按著琴鍵
+    const lfo = ctx.createOscillator(); lfo.frequency.value = .04 + Math.random() * .06;
+    const lg = ctx.createGain(); lg.gain.value = .035;
+    lfo.connect(lg).connect(g.gain);
+    o.connect(g).connect(lp); o.start(); lfo.start();
+    nodes.push(o, lfo);
+  });
+  lp.connect(pad).connect(panner);
+
+  // 底下墊一層很淡的粉紅噪音，讓轉圈更容易聽出來
+  const n = ctx.createBufferSource(); n.buffer = noiseBuffer('pink'); n.loop = true;
+  const nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 900;
+  const ng = ctx.createGain(); ng.gain.value = .12;
+  n.connect(nf).connect(ng).connect(panner); n.start(); nodes.push(n);
+
+  panner.connect(out);
+
+  // 繞圈：x 用 sin、z 用 cos，半徑 1.6
+  const R = 1.6;
+  let setSpeed, timer = null;
+  if(panner.positionX){
+    panner.positionX.value = 0; panner.positionY.value = 0; panner.positionZ.value = 0;
+    const ox = ctx.createOscillator(), oz = ctx.createOscillator();
+    oz.setPeriodicWave(ctx.createPeriodicWave(new Float32Array([0, 1]), new Float32Array([0, 0])));
+    const gx = ctx.createGain(), gz = ctx.createGain(); gx.gain.value = R; gz.gain.value = R;
+    ox.connect(gx).connect(panner.positionX);
+    oz.connect(gz).connect(panner.positionZ);
+    ox.start(); oz.start(); nodes.push(ox, oz);
+    setSpeed = sec => { const t = ctx.currentTime; ox.frequency.setTargetAtTime(1/sec, t, .5); oz.frequency.setTargetAtTime(1/sec, t, .5); };
+  } else {
+    let period = 12;
+    const t0 = performance.now();
+    timer = setInterval(() => {
+      const a = (performance.now() - t0) / 1000 / period * Math.PI * 2;
+      panner.setPosition(Math.sin(a) * R, 0, Math.cos(a) * R);
+    }, 50);
+    setSpeed = sec => { period = sec; };
+  }
+  setSpeed(S.speed);
+
+  return { out, setSpeed, stop(){ nodes.forEach(x => { try{ x.stop(); }catch{} }); if(timer) clearInterval(timer); } };
+}
+
+/* Lo-fi：放在 assets 資料夾的曲子，多放幾首就會自動隨機接著播，只有一首就重複播 */
+const LOFI = ['assets/lofi-1.mp3'];
+function makeLofi(){
+  const ctx = A.ctx, out = ctx.createGain();
+  const audio = new Audio();
+  audio.preload = 'auto';
+  let last = -1;
+  const pick = () => {
+    let i = Math.floor(Math.random() * LOFI.length);
+    if(LOFI.length > 1 && i === last) i = (i + 1) % LOFI.length;
+    last = i; return LOFI[i];
+  };
+  audio.loop = LOFI.length === 1;
+  audio.src = pick();
+  audio.addEventListener('ended', () => { audio.src = pick(); audio.play().catch(() => {}); });
+  const src = ctx.createMediaElementSource(audio);
+  const g = ctx.createGain(); g.gain.value = .38; // 這首本身比較大聲，壓到跟其他聲音差不多
+  src.connect(g).connect(out);
+  audio.play().catch(() => {});
+  return { out, stop(){ audio.pause(); audio.removeAttribute('src'); audio.load(); } };
+}
+
+const NEED_HP = id => id === '8d' || id === 'binaural';
+function effectiveSound(id){
+  return (NEED_HP(id) && !S.headphones) ? 'pink' : id;
+}
+
+/* 雙耳節拍：左耳 200 Hz、右耳 216 Hz，兩耳差 16 Hz。底下墊一層很淡的粉紅噪音，純音聽久會累 */
+function makeBinaural(){
+  const ctx = A.ctx, out = ctx.createGain(), nodes = [];
+  const merge = ctx.createChannelMerger(2);
+  [[200, 0], [216, 1]].forEach(([f, ch]) => {
+    const o = ctx.createOscillator(); o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.value = .13;
+    o.connect(g).connect(merge, 0, ch); o.start(); nodes.push(o);
+  });
+  merge.connect(out);
+  const n = ctx.createBufferSource(); n.buffer = noiseBuffer('pink'); n.loop = true;
+  const nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 1000;
+  const ng = ctx.createGain(); ng.gain.value = .14;
+  n.connect(nf).connect(ng).connect(out); n.start(); nodes.push(n);
+  return { out, stop(){ nodes.forEach(x => { try{ x.stop(); }catch{} }); } };
+}
+
+function setSound(id, fade = 2, force = false){
+  if(!A.ctx) return;
+  const real = force ? id : effectiveSound(id);
+  if(real === A.curId) return;
+  const t = A.ctx.currentTime, old = A.cur;
+  if(old){
+    old.out.gain.cancelScheduledValues(t);
+    old.out.gain.setValueAtTime(old.out.gain.value, t);
+    old.out.gain.linearRampToValueAtTime(0, t + fade);
+    setTimeout(() => { old.stop(); old.out.disconnect(); }, (fade + .2) * 1000);
+  }
+  A.cur = null; A.curId = real;
+  if(real === 'quiet') return;
+  const s = real === '8d' ? make8D() : real === 'binaural' ? makeBinaural() : real === 'lofi' ? makeLofi() : makeNoise(real);
+  s.out.gain.value = 0;
+  s.out.gain.linearRampToValueAtTime(1, t + fade);
+  s.out.connect(A.master);
+  A.cur = s;
+}
+
+function fadeMaster(to, sec){
+  if(!A.ctx) return;
+  const g = A.master.gain, t = A.ctx.currentTime;
+  g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(to, t + sec);
+}
+const masterLevel = () => Math.pow(S.volume / 100, 1.6);
+
+function chime(){
+  if(!A.ctx) return;
+  const t = A.ctx.currentTime;
+  [523.25, 783.99].forEach((f, i) => {
+    const o = A.ctx.createOscillator(), g = A.ctx.createGain();
+    o.frequency.value = f; g.gain.setValueAtTime(0, t + i*.25);
+    g.gain.linearRampToValueAtTime(.18, t + i*.25 + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, t + i*.25 + 2.5);
+    o.connect(g).connect(A.ctx.destination); o.start(t + i*.25); o.stop(t + i*.25 + 2.6);
+  });
+}
+
+/* ---------- 選單 ---------- */
+function renderChips(box, items, current, onPick){
+  // 已經畫過就只換選取狀態，這樣按下去的漣漪不會被重畫洗掉
+  if(box.children.length === items.length){
+    [...box.children].forEach((b, i) => b.classList.toggle('on', items[i].id === current));
+    return;
+  }
+  box.innerHTML = '';
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (it.id === current ? ' on' : '');
+    b.textContent = it.name;
+    b.onclick = () => { onPick(it.id); };
+    box.appendChild(b);
+  });
+}
+function drawMenus(){
+  renderChips($('minChips'), [15,25,35,50].map(m => ({ id:m, name:`${m} 分` })), S.minutes, m => { S.minutes = m; persist(); drawMenus(); });
+  renderChips($('soundChips'), SOUNDS, S.sound, id => { S.sound = id; persist(); drawMenus(); });
+  renderChips($('focusSoundChips'), SOUNDS, S.sound, id => { S.sound = id; persist(); drawMenus(); setSound(id); soundNote(); });
+  $('speedRow').classList.toggle('hide', effectiveSound(S.sound) !== '8d');
+}
+function soundNote(){
+  $('toast').textContent = (NEED_HP(S.sound) && !S.headphones) ? '沒戴耳機，先幫你換成粉紅噪音' : '';
+  $('speedRow').classList.toggle('hide', effectiveSound(S.sound) !== '8d');
+}
+function drawToday(){
+  const n = todayList().filter(r => r.finished).length;
+  $('todayNote').textContent = n ? `今天已經專注 ${n} 輪了` : '';
+}
+
+/* ---------- 計時 ---------- */
+const T = { end:0, left:0, paused:false, iv:null, el:null, done:null };
+const fmt = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+function startTimer(sec, el, done){
+  clearInterval(T.iv);
+  Object.assign(T, { end: Date.now() + sec*1000, left: sec*1000, paused:false, el, done });
+  tick(); T.iv = setInterval(tick, 250);
+}
+function tick(){
+  const left = T.paused ? T.left : Math.max(0, T.end - Date.now());
+  const [m, s] = fmt(left).split(':');
+  T.el.innerHTML = `${m}<span class="colon">:</span>${s}`;
+  document.title = `${fmt(left)} · Drop In`;
+  if(left <= 0 && !T.paused){ clearInterval(T.iv); T.done && T.done(); }
+}
+function togglePause(){
+  if(T.paused){ T.end = Date.now() + T.left; T.paused = false; fadeMaster(masterLevel(), 1.5); }
+  else { T.left = Math.max(0, T.end - Date.now()); T.paused = true; fadeMaster(0, 1); }
+  $('pauseBtn').textContent = T.paused ? '繼續' : '暫停';
+  $('focus').classList.toggle('paused', T.paused);
+}
+
+/* 螢幕不要變暗 */
+let wake = null;
+async function keepAwake(){ try { wake = await navigator.wakeLock?.request('screen'); } catch {} }
+function releaseAwake(){ try { wake?.release(); } catch {} wake = null; }
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && $('focus').classList.contains('active')) keepAwake();
+});
+
+/* ---------- 流程 ---------- */
+let current = null; // 這一輪的紀錄
+
+$('task').addEventListener('input', () => { $('goBtn').disabled = !$('task').value.trim(); });
+$('task').addEventListener('keydown', e => { if(e.key === 'Enter' && $('task').value.trim() && !e.isComposing) begin(); });
+$('goBtn').onclick = begin;
+
+function begin(){
+  initAudio(); // 聲音一定要在使用者按下去的這一刻啟動
+  current = { task: $('task').value.trim(), minutes: S.minutes, finished:false, done:null };
+  const needHp = NEED_HP(S.sound);
+  $('phoneAsk').classList.toggle('hide', !S.phoneAsk);
+  $('noPhoneAsk').classList.toggle('hide', !S.phoneAsk);
+  $('hpRow').classList.toggle('hide', !needHp);
+  $('hpNote').classList.toggle('hide', !needHp);
+  $('hp').checked = S.headphones;
+  if(!S.phoneAsk && !needHp) startBreath();
+  else go('ready');
+}
+$('hp').onchange = () => { S.headphones = $('hp').checked; persist(); };
+$('noPhoneAsk').onclick = () => { S.phoneAsk = false; persist(); $('phoneAsk').classList.add('hide'); $('noPhoneAsk').classList.add('hide'); };
+$('readyBtn').onclick = startBreath;
+
+/* 循環嘆息：吸氣、再補吸一小口、慢慢吐長氣 */
+let breathTimers = [], breathLeftIv = null;
+function startBreath(){
+  go('breathe');
+  const c = $('circle'), w = $('breathWord');
+  let left = 60;
+  $('breathLeft').textContent = left;
+  breathLeftIv = setInterval(() => { left--; $('breathLeft').textContent = Math.max(left, 0); }, 1000);
+  const phase = (word, scale, sec, next) => {
+    w.textContent = word;
+    c.style.transitionDuration = sec + 's';
+    c.style.transform = `scale(${scale})`;
+    breathTimers.push(setTimeout(next, sec * 1000));
+  };
+  const cycle = () => {
+    if(left <= 1){ endBreath(); return; }
+    phase('吸氣', 1.3, 2.2, () => phase('再吸一小口', 1.5, .9, () => phase('慢慢吐氣', .8, 6, cycle)));
+  };
+  cycle();
+}
+function endBreath(){
+  breathTimers.forEach(clearTimeout); breathTimers = [];
+  clearInterval(breathLeftIv);
+  startFocus();
+}
+$('skipBreath').onclick = endBreath;
+
+function startFocus(){
+  go('focus');
+  $('taskShow').textContent = current.task;
+  $('vol').value = S.volume; $('speed').value = S.speed; $('speedVal').textContent = S.speed + ' 秒';
+  $('pauseBtn').textContent = '暫停'; $('focus').classList.remove('paused');
+  drawMenus(); soundNote();
+  A.curId = 'quiet';
+  setSound(S.sound, 3);
+  fadeMaster(masterLevel(), 3);
+  keepAwake();
+  startTimer(S.minutes * 60, $('timer'), finishFocus);
+}
+
+function finishFocus(){
+  fadeMaster(0, 3);
+  setTimeout(() => setSound('quiet', .5), 3200);
+  chime();
+  releaseAwake();
+  current.finished = true;
+  todayList().push(current); persist();
+  $('askDone').classList.remove('hide'); $('afterDone').classList.add('hide');
+  go('rest');
+  startTimer(5 * 60, $('restTimer'), () => { chime(); document.title = '休息結束 · Drop In'; });
+}
+
+function answer(done){
+  current.done = done; persist();
+  $('askDone').classList.add('hide'); $('afterDone').classList.remove('hide');
+  $('afterText').textContent = done ? '很好。下一步要做什麼？' : '沒關係，下一輪可以把同一步切小一點。';
+}
+$('yesBtn').onclick = () => answer(true);
+$('noBtn').onclick = () => answer(false);
+
+$('nextBtn').onclick = () => {
+  clearInterval(T.iv); document.title = 'Drop In';
+  $('task').value = current.done ? '' : current.task;
+  $('goBtn').disabled = !$('task').value.trim();
+  drawMenus(); drawToday(); go('start'); $('task').focus();
+};
+$('stopBtn').onclick = showDone;
+
+function showDone(){
+  clearInterval(T.iv); document.title = 'Drop In';
+  const list = todayList().filter(r => r.finished);
+  $('roundCount').textContent = list.length;
+  $('todayList').innerHTML = list.map(r =>
+    `<div><b>${r.done ? '✓' : '·'}</b>${r.task.replace(/[<>&]/g, '')}<span style="opacity:.6"> ${r.minutes} 分</span></div>`
+  ).join('');
+  go('done');
+}
+$('againBtn').onclick = () => { $('task').value = ''; $('goBtn').disabled = true; drawMenus(); drawToday(); go('start'); $('task').focus(); };
+
+$('quitBtn').onclick = () => {
+  clearInterval(T.iv); document.title = 'Drop In';
+  fadeMaster(0, 1); setTimeout(() => setSound('quiet', .3), 1100);
+  releaseAwake();
+  drawToday(); go('start');
+};
+$('pauseBtn').onclick = togglePause;
+
+$('vol').oninput = e => { S.volume = +e.target.value; persist(); if(!T.paused) fadeMaster(masterLevel(), .2); };
+$('speed').oninput = e => { S.speed = +e.target.value; persist(); $('speedVal').textContent = S.speed + ' 秒'; A.cur?.setSpeed?.(S.speed); };
+
+/* 專注時按鈕藏起來，動一下滑鼠或點畫面才出現 */
+let hideIv = null;
+function showCtrl(){
+  if(!$('focus').classList.contains('active')) return;
+  $('ctrl').classList.add('show');
+  clearTimeout(hideIv); hideIv = setTimeout(() => $('ctrl').classList.remove('show'), 3000);
+}
+['mousemove','touchstart','keydown'].forEach(ev => document.addEventListener(ev, showCtrl, { passive:true }));
+document.addEventListener('keydown', e => {
+  if(e.code === 'Space' && $('focus').classList.contains('active')){ e.preventDefault(); togglePause(); }
+});
+
+/* 分享 */
+$('shareBtn').onclick = async () => {
+  const n = todayList().filter(r => r.finished).length;
+  const text = `我今天用 Drop In 專注了 ${n} 輪，寫下第一步就能開始：`;
+  try {
+    if(navigator.share){ await navigator.share({ title:'Drop In', text, url: location.href }); return; }
+    await navigator.clipboard.writeText(`${text} ${location.href}`);
+    $('shareToast').textContent = '連結已經複製好了';
+  } catch {}
+};
+
+/* ---------- 聲音說明與試聽 ---------- */
+const GUIDE = {
+  '8d':  { text:'低沉柔和的和弦，底下墊一點點雨聲，整組聲音會繞著你的頭轉圈。轉圈的聲音會一直勾住一點點注意力，有人覺得這樣比較不會胡思亂想。',
+           tag:'要戴耳機。目前只有使用者分享的經驗，沒有正式研究。', bars:[3,6,9,8,6,4,2,1,1,1] },
+  'binaural':{ text:'左耳和右耳各放一個音，左邊 200 Hz、右邊 216 Hz。大腦會把兩個音的差距聽成每秒 16 下的「嗡嗡」起伏，這個速度落在跟清醒、專注有關的範圍。底下另外墊了一層很淡的雨聲。',
+           tag:'一定要戴耳機，用喇叭兩個音會混在一起，就沒有效果了。統合分析看到中等效果，但各研究結果不太一致。', bars:[1,10,1,0,0,0,0,0,0,0] },
+  'lofi':{ text:'慢慢的鋼琴和弦，加上軟軟的鼓和一點黑膠唱片的沙沙聲，沒有人聲。比起其他聲音，它比較像真的音樂，心情會輕鬆一點。',
+           tag:'研究上比較像幫忙放鬆，對專注的幫助不明顯。有旋律的東西有時會勾走注意力，讀很需要動腦的內容時可以換成噪音。音樂：Kulakovka，來自 Pixabay。', bars:[6,8,7,6,5,4,3,2,1.5,1] },
+  'pink':{ text:'像下得很穩的雨，或風吹過樹林。高音比白噪音少，所以不刺耳，聽久也還好。',
+           tag:'研究上對有注意力困擾的人有小幅幫助，其他人效果不明顯。', bars:[9,8,7,6,5,4,3.5,3,2.5,2] },
+  'brown':{ text:'比粉紅噪音更低沉，像遠處的瀑布或飛機機艙裡的轟轟聲。幾乎沒有尖銳的高音。',
+           tag:'網路上很紅，但專門研究很少。', bars:[10,7,5,3.5,2.5,1.8,1.2,.8,.5,.4] },
+  'white':{ text:'每個頻率一樣大，像電視沒訊號的沙沙聲。最能蓋掉旁邊的講話聲，適合吵的地方，不過聽久可能會有點刺。',
+           tag:'跟粉紅噪音一樣，對有注意力困擾的人有小幅幫助。', bars:[5,5,5,5,5,5,5,5,5,5] },
+  'quiet':{ text:'什麼都不放。其實不少人在安靜裡最專心，如果聽了任何聲音都覺得煩，選這個就對了。',
+           tag:'', bars:null },
+};
+let previewing = null, previewTimer = null;
+
+function drawGuide(){
+  $('soundCards').innerHTML = SOUNDS.map(s => {
+    const g = GUIDE[s.id];
+    const bars = g.bars ? `<div class="bars">${g.bars.map(v => `<i style="height:${v*10}%"></i>`).join('')}</div><div class="bars-cap"><span>低音</span><span>高音</span></div>` : '';
+    return `<div class="sound-card">
+      <div class="top"><span class="name">${s.name}</span><span>
+        ${s.id !== 'quiet' ? `<button class="chip" data-try="${s.id}">${previewing === s.id ? '停止' : '試聽'}</button>` : ''}
+        <button class="chip ${S.sound === s.id ? 'on' : ''}" data-use="${s.id}">${S.sound === s.id ? '已選' : '用這個'}</button>
+      </span></div>
+      ${bars}<p>${g.text}</p>${g.tag ? `<p class="tag">${g.tag}</p>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// 只換按鈕上的字，不整個重畫，按下去的漣漪才看得到
+function refreshGuide(){
+  document.querySelectorAll('#soundCards [data-try]').forEach(b => b.textContent = previewing === b.dataset.try ? '停止' : '試聽');
+  document.querySelectorAll('#soundCards [data-use]').forEach(b => {
+    const on = S.sound === b.dataset.use; b.classList.toggle('on', on); b.textContent = on ? '已選' : '用這個';
+  });
+}
+
+function stopPreview(){
+  clearTimeout(previewTimer);
+  if(previewing){ fadeMaster(0, .8); setTimeout(() => { if(!previewing) setSound('quiet', .3, true); }, 900); }
+  previewing = null;
+}
+function preview(id){
+  initAudio();
+  if(previewing === id){ stopPreview(); refreshGuide(); return; }
+  clearTimeout(previewTimer);
+  previewing = id;
+  setSound(id, .8, true);
+  fadeMaster(masterLevel() || .1, .6);
+  previewTimer = setTimeout(() => { stopPreview(); refreshGuide(); }, 8000);
+  refreshGuide();
+}
+
+$('soundCards').addEventListener('click', e => {
+  const t = e.target.closest('[data-try]'), u = e.target.closest('[data-use]');
+  if(t) preview(t.dataset.try);
+  if(u){ S.sound = u.dataset.use; persist(); drawMenus(); refreshGuide(); }
+});
+function openGuide(){ drawGuide(); $('sheet').classList.add('open'); $('sheetBg').classList.add('open'); }
+function closeGuide(){ stopPreview(); $('sheet').classList.remove('open'); $('sheetBg').classList.remove('open'); }
+$('guideBtn').onclick = openGuide;
+$('closeSheet').onclick = closeGuide;
+$('sheetBg').onclick = closeGuide;
+
+/* ---------- 按鈕漣漪 ---------- */
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.btn, .chip');
+  if(!b || b.disabled) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2;
+  const s = document.createElement('span');
+  s.className = 'ripple';
+  s.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left}px;top:${e.clientY - r.top}px`;
+  b.appendChild(s);
+  setTimeout(() => s.remove(), 900);
+});
+
+drawMenus(); drawToday();
+$('task').focus();
+</script>
+</body>
+</html>
